@@ -42,3 +42,6 @@ uploads/*
 tmp/
 temp/
 coverage/
+
+# Local development & private planning
+PLANO_SEMANAL.md

@@ -581,6 +581,65 @@ export const imagensProjetoTable = pgTable("imagens_projeto", {
 }, (table) => [
   uniqueIndex("imagens_uma_capa_por_projeto").on(table.projetoId).where(sql`capa = true`)
 ]);
+
+export const solicitacoesOrcamentoTable = pgTable("solicitacoes_orcamento", {
+  id: uuid("id").primaryKey(),
+  nome: text("nome").notNull(),
+  email: text("email").notNull(),
+  telefone: text("telefone"),
+  tipoProjeto: text("tipo_projeto"),
+  mensagem: text("mensagem").notNull(),
+  status: text("status", { enum: ["nova", "respondida", "arquivada"] }).notNull().default("nova"),
+  criadaEm: timestamp("criada_em", { withTimezone: true }).notNull().defaultNow()
+});
+```
+
+#### 1.1 Modelo SQL Relacional de Referência (PostgreSQL DDL)
+Referência direta da modelagem de dados no Postgres (as migrations finais são geradas a partir do schema Drizzle):
+
+```sql
+create table categorias (
+  id   uuid primary key,
+  nome text not null unique,
+  slug text not null unique
+);
+
+create table projetos (
+  id            uuid primary key,
+  titulo        text not null,
+  slug          text not null unique,
+  descricao     text not null default '',
+  categoria_id  uuid not null references categorias(id),
+  ano           smallint,
+  materiais     text[] not null default '{}',
+  destaque      boolean not null default false,
+  publicado     boolean not null default false,
+  criado_em     timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+
+create table imagens_projeto (
+  id         uuid primary key,
+  projeto_id uuid not null references projetos(id) on delete cascade,
+  chave      text not null,           -- identificador no storage, não a URL
+  alt        text not null default '',
+  ordem      smallint not null,
+  capa       boolean not null default false
+);
+create unique index imagens_uma_capa_por_projeto
+  on imagens_projeto (projeto_id) where capa;
+
+create table solicitacoes_orcamento (
+  id           uuid primary key,
+  nome         text not null,
+  email        text not null,
+  telefone     text,
+  tipo_projeto text,
+  mensagem     text not null,
+  status       text not null default 'nova'
+               check (status in ('nova','respondida','arquivada')),
+  criada_em    timestamptz not null default now()
+);
 ```
 
 #### 2. Pipeline de Otimização de Imagens com Sharp (`apps/api/src/modules/portfolio/infrastructure/LocalDiskImageStorage.ts`)
