@@ -2,6 +2,8 @@
 
 > **Uma vitrine digital para divulgação de marcenaria fina, construída como laboratório prático de engenharia de software aplicando Arquitetura Hexagonal (Ports & Adapters), Domain-Driven Design (DDD) e Clean Architecture.**
 
+[Abrir o site](https://uservesper.github.io/marceRi/)
+
 ---
 
 ## 🎯 1. Visão Geral e Propósito de Estudo
