@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  /* Paleta Inspirada em Madeiras Nobres & Texturas Orgânicas */
+  --color-wood-raw: #fbf7f0;
+  --color-wood-sand: #ecdcc9;
+  --color-wood-oak: #c49a6c;
+  --color-wood-walnut: #754728;
+  --color-wood-dark: #3b2214;
+  --color-wood-charcoal: #141210;
+
+  --color-wood-primary: #d97706;
+  --color-wood-primary-hover: #b45309;
+
+  /* Fontes */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Transições suaves e renderização nítida */
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
