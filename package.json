@@ -2,6 +2,7 @@
   "name": "marceri",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@9.15.5",
   "scripts": {
     "dev": "pnpm --parallel dev",
     "dev:api": "pnpm --filter @marceri/api dev",
