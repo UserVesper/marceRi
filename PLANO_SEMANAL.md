@@ -1387,6 +1387,46 @@ volumes:
 
 ---
 
+## 💰 Arquitetura de Custos & Hospedagem (Opção Escolhida)
+
+Para manter o site no ar 24h/dia gastando o mínimo possível (~R$ 25 a R$ 35/mês no total), a estratégia adota serviços especializados com **camadas gratuitas generosas e tráfego ilimitado**:
+
+| Componente | Provedor Selecionado | Custo Mensal Estimado | Papel na Arquitetura |
+|---|---|---|---|
+| **Frontend** | **Cloudflare Pages / Vercel** | **R$ 0,00 (Grátis)** | Hospeda o build estático do React (`apps/web/dist`). Distribuição global via Edge/CDN com latência mínima e SSL automático. |
+| **Armazenamento de Imagens** | **Cloudflare R2** | **R$ 0,00 (Grátis até 10 GB)** | Compatível 100% com a S3 API (`@aws-sdk/client-s3`), porém **sem taxa de transferência de dados (zero egress fees)**. Imagens em alta definição sem surpresa no fim do mês. |
+| **Backend & Banco de Dados** | **VPS Pequena (Hetzner / DigitalOcean / Lightsail)** | **~R$ 25,00 a R$ 35,00 / mês** | Uma instância enxuta (1-2 GB RAM) rodando Docker Compose com a API Node.js Express 5 + PostgreSQL 16 + Caddy para proxy reverso. |
+| **Domínio Registrado** | **Registro.br** (`marceri.com.br`) | **R$ 40,00 / ano** (~R$ 3,33/mês) | Nome oficial registrado do marceneiro com renovação anual fixa. |
+| **TOTAL MENSAL ESTIMADO** | | **~R$ 28 a R$ 38 / mês** | O marceneiro mantém o site no ar 24h com alta confiabilidade e custo previsível. |
+
+### 🔄 Como o Código se Adapta à Cloudflare R2
+Como o backend segue a **Arquitetura Hexagonal**, a troca do armazenamento local em disco para a nuvem ocorre apenas criando um novo adaptador na camada de infraestrutura (`apps/api/src/modules/portfolio/infrastructure/R2ImageStorage.ts`), sem alterar nenhuma linha do Domínio ou dos Casos de Uso:
+
+```typescript
+// Exemplo do adaptador S3/R2 implementando a mesma porta ImageStorage
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { ImageStorage } from "../application/ports/ImageStorage";
+
+export class R2ImageStorage implements ImageStorage {
+  private s3 = new S3Client({
+    region: "auto",
+    endpoint: process.env.R2_ENDPOINT, // https://<account_id>.r2.cloudflarestorage.com
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    },
+  });
+
+  async salvarVariantes(buffer: Buffer, nomeBase: string): Promise<string> {
+    // Envia as variantes WebP para o bucket R2 usando a mesma interface S3
+    // O domínio nem sabe se o arquivo está no disco local, AWS S3 ou Cloudflare R2!
+    return nomeBase;
+  }
+}
+```
+
+---
+
 ## 🧠 Guia de Aprendizado: O que Anotar no seu Diário de Bordo
 
 A cada semana, dedique 30 minutos para responder estas perguntas de arquitetura:
