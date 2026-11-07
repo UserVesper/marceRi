@@ -26,14 +26,14 @@
 Configurar o ambiente profissional monorepo com `pnpm`, orquestrar o banco local com Docker Compose, estruturar as 3 áreas do repositório (`apps/api`, `apps/web`, `packages/shared`) e fazer o frontend exibir dados do backend com sucesso.
 
 ### 📋 Checklist de Tarefas
-- [ ] Inicializar repositório Git e `.gitattributes` para compatibilidade Windows/Linux.
-- [ ] Criar `pnpm-workspace.yaml` e configurar o catálogo central de dependências.
-- [ ] Configurar TypeScript base (`tsconfig.base.json`) e referências nos pacotes.
-- [ ] Criar `docker-compose.yml` com PostgreSQL 16 e healthcheck ativo.
-- [ ] Criar `packages/shared` com o primeiro contrato tipado (`HealthCheckResponseSchema`).
-- [ ] Criar `apps/api` mínimo com Express 5 e rota `GET /api/health`.
-- [ ] Criar `apps/web` com Vite + React 19 + Tailwind CSS v4.
-- [ ] Conectar front e back: tela inicial exibindo card com badge pulsante "Sistema Online".
+- [x] Inicializar repositório Git e `.gitattributes` para compatibilidade Windows/Linux.
+- [x] Criar `pnpm-workspace.yaml` e configurar o catálogo central de dependências.
+- [x] Configurar TypeScript base (`tsconfig.base.json`) e referências nos pacotes.
+- [x] Criar `docker-compose.yml` com PostgreSQL 16 e healthcheck ativo.
+- [x] Criar `packages/shared` com o primeiro contrato tipado (`HealthCheckResponseSchema`).
+- [x] Criar `apps/api` mínimo com Express 5 e rota `GET /api/health`.
+- [x] Criar `apps/web` com Vite + React 19 + Tailwind CSS v4.
+- [x] Conectar front e back: tela inicial exibindo card com badge pulsante "Sistema Online".
 
 ---
 

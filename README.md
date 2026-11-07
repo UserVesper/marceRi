@@ -271,11 +271,12 @@ apps/web/src/
 - [ ] Definir categorias, paleta e tipografia
 - [ ] Wireframes simples das 5 telas
 
-**Fase 1: setup**
-- [ ] Repositório, pnpm workspaces, tsconfig base, ESLint + Prettier
-- [ ] `docker-compose.yml` com Postgres
-- [ ] CI (lint + testes) no GitHub Actions
-- [ ] `.gitattributes` para padronizar fim de linha (Windows)
+**Fase 1: setup (Semana 1 Concluída)**
+- [x] Repositório, pnpm workspaces, tsconfig base, ESLint + Prettier
+- [x] `docker-compose.yml` com Postgres
+- [x] CI (lint + testes) no GitHub Actions
+- [x] `.gitattributes` para padronizar fim de linha (Windows)
+- [x] Contratos no `packages/shared`, Express 5 (`/api/health`) e React 19 com Tailwind v4 + Motion integrados
 
 **Fase 2: domínio e casos de uso (Portfólio)**
 - [ ] Entidades, value objects e erros de domínio
