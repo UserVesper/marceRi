@@ -8,8 +8,8 @@
     "dev:api": "pnpm --filter @marceri/api dev",
     "dev:web": "pnpm --filter @marceri/web dev",
     "build": "pnpm --recursive build",
-    "typecheck": "pnpm --recursive typecheck",
-    "test": "pnpm --recursive test",
+    "typecheck": "pnpm --filter @marceri/shared build && pnpm --recursive typecheck",
+    "test": "pnpm --filter @marceri/shared build && pnpm --recursive test",
     "lint": "pnpm --recursive lint",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down"
