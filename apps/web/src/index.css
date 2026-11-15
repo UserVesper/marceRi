@@ -28,6 +28,16 @@ html {
   touch-action: manipulation;
 }
 
+button, a, [role="button"] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input, textarea, select {
+  font-size: 16px;
+}
+
 /* Scrollbar refinada e discreta */
 ::-webkit-scrollbar {
   width: 6px;

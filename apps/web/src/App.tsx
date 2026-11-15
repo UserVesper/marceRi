@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useId } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import React, { useState, useEffect, useId, useMemo } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 // Tipos e modelos de dados
 
@@ -40,12 +40,24 @@ export const CONTATO_ATELIE = {
   telefone: "(11) 94071-0139",
   email: "contato@ferrerlim.com.br",
   cidade: "São Paulo — SP (Visitas sob agendamento prévio)",
-  // Converte automaticamente o telefone formatado para os dígitos do WhatsApp:
   get whatsappLink(): string {
     const digitos = this.telefone.replace(/\D/g, "");
     return digitos.startsWith("55") ? digitos : `55${digitos}`;
   }
 };
+
+// Hook: detecta se o dispositivo suporta hover real (pointer fine)
+function useCanHover(): boolean {
+  const [canHover, setCanHover] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+    setCanHover(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setCanHover(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return canHover;
+}
 
 // Dados do ateliê
 
@@ -104,8 +116,9 @@ const PROJETOS_FERRERLIM: ProjetoItem[] = [
     tempoProducao: "5 semanas de marcenaria autoral",
     descricaoCurta: "Estrutura curva esculpida à mão em nogueira maciça, com assento anatômico suspenso em couro de curtimento vegetal.",
     descricaoCompleta: "Cada braço e travessa desta poltrona nasce de blocos maciços desbastados manualmente com goivas e plainas japonesas Kanna. O couro soleta legítimo de 3.5mm é costurado com pesponto náutico manual e ganha pátina natural com o uso, moldando-se com perfeição ao corpo com o passar das décadas.",
-    imagemCapa: "https://images.unsplash.com/photo-1580481077114-1e0952d73f4e?auto=format&fit=crop&w=1600&q=85",
+    imagemCapa: "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=1600&q=85",
     fotosAdicionais: [
+      "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=1200&q=80"
     ],
     detalheArtesanal: "Curvatura ergonômica lombar calculada para conforto prolongado sem necessidade de espuma sintética.",
@@ -245,7 +258,6 @@ function LogoFerrerlim({ className = "w-8 h-8" }: { className?: string }) {
   return (
     <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
       <rect width="36" height="36" rx="9" fill="#1b1815" stroke="rgba(217, 119, 6, 0.3)" strokeWidth="1.2" />
-      {/* Geometria de encaixe rabo-de-andorinha estilizado */}
       <path d="M10 11H26" stroke="#f5f1eb" strokeWidth="2.2" strokeLinecap="round" />
       <path d="M10 18H21" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" />
       <path d="M10 25H17" stroke="#f5f1eb" strokeWidth="2.2" strokeLinecap="round" />
@@ -313,6 +325,31 @@ function IconCompass({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
+// Componente para entradas com scroll (whileInView)
+function FadeInSection({
+  children,
+  className = "",
+  delay = 0,
+  reduced = false
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+  reduced?: boolean;
+}) {
+  return (
+    <motion.div
+      initial={reduced ? false : { opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.5, delay, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 // Componente principal
 
 export default function App() {
@@ -337,6 +374,19 @@ export default function App() {
   const [formEnviado, setFormEnviado] = useState(false);
 
   const formId = useId();
+  const canHover = useCanHover();
+  const prefersReduced = useReducedMotion();
+
+  // Variantes de animação condicionais (reduced motion desliga transforms, mantém opacity)
+  const heroTextVariants = useMemo(() => ({
+    hidden: prefersReduced ? { opacity: 0 } : { opacity: 0, y: 24 },
+    visible: { opacity: 1, y: 0 }
+  }), [prefersReduced]);
+
+  const heroImageVariants = useMemo(() => ({
+    hidden: prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 },
+    visible: { opacity: 1, scale: 1 }
+  }), [prefersReduced]);
 
   // Scroll detection para o header de vidro fosco
   useEffect(() => {
@@ -347,7 +397,7 @@ export default function App() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Bloqueio de scroll ao abrir modal (Mobile-native e UX refinada)
+  // Bloqueio de scroll ao abrir modal
   useEffect(() => {
     if (projetoSelecionado || madeiraDetalhe || menuMobile) {
       document.body.style.overflow = "hidden";
@@ -359,7 +409,7 @@ export default function App() {
     };
   }, [projetoSelecionado, madeiraDetalhe, menuMobile]);
 
-  // Fechamento com a tecla Escape (Acessibilidade e Interrupção fluida)
+  // Fechamento com a tecla Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -407,11 +457,15 @@ export default function App() {
     element?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Props de hover condicionais (só aplica em dispositivos com pointer fine)
+  const hoverScale = canHover ? { scale: 1.02 } : {};
+  const hoverScaleSmall = canHover ? { scale: 1.04 } : {};
+
   return (
-    <div className="min-h-screen bg-[#0d0c0a] text-[#f5f1eb] font-sans antialiased selection:bg-amber-600/30 selection:text-amber-200">
+    <div className="min-h-dvh bg-[#0d0c0a] text-[#f5f1eb] font-sans antialiased selection:bg-amber-600/30 selection:text-amber-200">
       {/* Header */}
       <header
-        className={`fixed top-0 left-0 w-full z-40 transition-all duration-300 ease-out ${scrolled
+        className={`fixed top-0 left-0 w-full z-40 transition-[background-color,border-color,padding,box-shadow] duration-300 ease-out ${scrolled
             ? "bg-[#0d0c0a]/85 backdrop-blur-xl border-b border-white/[0.07] py-3.5 shadow-2xl shadow-black/40"
             : "bg-transparent py-6"
           }`}
@@ -424,7 +478,7 @@ export default function App() {
             aria-label="Ferrerlim Ateliê de Marcenaria Autoral"
           >
             <motion.div
-              whileHover={{ rotate: 6 }}
+              whileHover={canHover ? { rotate: 6 } : undefined}
               whileTap={{ scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 20 }}
             >
@@ -460,16 +514,16 @@ export default function App() {
 
             <motion.a
               href="#simulador"
-              whileHover={{ scale: 1.03 }}
+              whileHover={canHover ? { scale: 1.03 } : undefined}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-stone-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 rounded-full shadow-lg shadow-amber-500/20 active:shadow-none"
+              className="px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-stone-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 rounded-full shadow-lg shadow-amber-500/20 active:shadow-none transition-[background,box-shadow] duration-200"
             >
               Orçamento Autoral
             </motion.a>
           </nav>
 
-          {/* Botão Mobile Hamburger (Área de toque de 44x44px) */}
+          {/* Botão Mobile Hamburger (44x44px touch target) */}
           <button
             onClick={() => setMenuMobile(!menuMobile)}
             className="md:hidden w-11 h-11 flex items-center justify-center rounded-xl text-stone-300 hover:text-white hover:bg-stone-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
@@ -492,13 +546,13 @@ export default function App() {
           </button>
         </div>
 
-        {/* Menu Mobile Drawer com AnimatePresence e Gestos Fluidos */}
+        {/* Menu Mobile Drawer: clipPath+opacity em vez de height (GPU-only) */}
         <AnimatePresence>
           {menuMobile && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
+              initial={{ opacity: 0, clipPath: "inset(0 0 100% 0)" }}
+              animate={{ opacity: 1, clipPath: "inset(0 0 0% 0)" }}
+              exit={{ opacity: 0, clipPath: "inset(0 0 100% 0)" }}
               transition={{ type: "spring", stiffness: 350, damping: 30 }}
               className="md:hidden bg-[#110f0d]/95 backdrop-blur-xl border-b border-stone-800/80 px-6 py-6"
             >
@@ -544,29 +598,37 @@ export default function App() {
         </AnimatePresence>
       </header>
 
-      {/* Hero */}
+      {/* Hero com entrada coreografada (stagger badge → título → desc → CTAs → stats) */}
       <section
         id="inicio"
-        className="relative min-h-[94vh] flex items-center justify-center pt-32 pb-20 px-6 overflow-hidden"
+        className="relative min-h-svh flex items-center justify-center pt-32 pb-20 px-6 overflow-hidden"
       >
-        {/* Glow sutil orgânico com blur amplo (sem agressividade visual) */}
+        {/* Glow sutil orgânico */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[450px] bg-amber-600/10 rounded-full blur-[160px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center relative z-10">
-          {/* Coluna de Texto & Manifesto */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-            className="lg:col-span-7 space-y-7"
-          >
-            {/* Tag / Badge de Precisão */}
-            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-xs font-mono text-amber-400 bg-amber-500/10 border border-amber-500/25">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          {/* Coluna de Texto com stagger coreografado */}
+          <div className="lg:col-span-7 space-y-7">
+            {/* Badge — lead element, entra primeiro */}
+            <motion.div
+              variants={heroTextVariants}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-xs font-mono text-amber-400 bg-amber-500/10 border border-amber-500/25"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-400 opacity-80" aria-hidden="true" />
               <span>Marcenaria Autoral &bull; Madeira Maciça DOF</span>
-            </div>
+            </motion.div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif font-bold text-stone-50 leading-[1.14] tracking-[-0.03em]">
+            {/* Título — entra com 70ms de overlap */}
+            <motion.h1
+              variants={heroTextVariants}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.55, delay: 0.07, ease: [0.16, 1, 0.3, 1] }}
+              className="text-4xl sm:text-5xl lg:text-6xl font-serif font-bold text-stone-50 leading-[1.14] tracking-[-0.03em]"
+            >
               Móveis que preservam a alma da tora. Feitos para{" "}
               <span className="relative inline-block font-serif italic font-normal">
                 <span className="bg-gradient-to-r from-amber-200 via-amber-300 to-amber-500 bg-clip-text text-transparent">
@@ -577,40 +639,59 @@ export default function App() {
                   aria-hidden="true"
                 />
               </span>
-            </h1>
+            </motion.h1>
 
-            <p className="text-base sm:text-lg text-stone-300 max-w-xl leading-relaxed font-light">
+            {/* Descrição — delay 140ms */}
+            <motion.p
+              variants={heroTextVariants}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.5, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}
+              className="text-base sm:text-lg text-stone-300 max-w-xl leading-relaxed font-light"
+            >
               No ateliê <strong className="text-stone-100 font-semibold">Ferrerlim</strong>, a madeira dita o traço.
               Trabalhamos com madeiras nobres em secagem natural, marchetaria estrutural clássica e acabamentos
               respiráveis que respeitam o calor e o perfume orgânico da matéria-prima.
-            </p>
+            </motion.p>
 
-            {/* CTAs com feedback tátil Apple-style */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
+            {/* CTAs — delay 210ms */}
+            <motion.div
+              variants={heroTextVariants}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.5, delay: 0.21, ease: [0.16, 1, 0.3, 1] }}
+              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2"
+            >
               <motion.a
                 href="#obras"
-                whileHover={{ scale: 1.02 }}
+                whileHover={hoverScale}
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className="px-8 py-4 text-center text-sm font-semibold rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 transition-all duration-200 shadow-xl shadow-amber-500/15"
+                className="px-8 py-4 text-center text-sm font-semibold rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 transition-[background,box-shadow] duration-200 shadow-xl shadow-amber-500/15"
               >
                 Explorar Obras Autorais
               </motion.a>
 
               <motion.button
                 onClick={() => handleWhatsApp()}
-                whileHover={{ scale: 1.02 }}
+                whileHover={hoverScale}
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className="px-8 py-4 text-center text-sm font-semibold rounded-full bg-stone-900/90 hover:bg-stone-800 text-stone-200 border border-stone-700/80 transition-all duration-200 flex items-center justify-center gap-2.5"
+                className="px-8 py-4 text-center text-sm font-semibold rounded-full bg-stone-900/90 hover:bg-stone-800 text-stone-200 border border-stone-700/80 transition-[background-color,border-color] duration-200 flex items-center justify-center gap-2.5"
               >
                 <IconWhatsApp className="w-4 h-4 text-emerald-400" />
                 Conversar com o Marceneiro
               </motion.button>
-            </div>
+            </motion.div>
 
-            {/* Selos de Rigor Técnico */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8 border-t border-white/[0.08]">
+            {/* Stats — delay 280ms */}
+            <motion.div
+              variants={heroTextVariants}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.5, delay: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8 border-t border-white/[0.08]"
+            >
               <div>
                 <span className="block text-2xl font-bold font-serif text-stone-100">100%</span>
                 <span className="text-xs text-stone-400">Madeira Maciça</span>
@@ -627,21 +708,22 @@ export default function App() {
                 <span className="block text-2xl font-bold font-serif text-stone-100">São Paulo</span>
                 <span className="text-xs text-stone-400">Ateliê Autoral</span>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
 
-          {/* Coluna da Fotografia em Alta Resolução */}
+          {/* Coluna da Fotografia — entra em paralelo ao título, não sequencial */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+            variants={heroImageVariants}
+            initial="hidden"
+            animate="visible"
+            transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
             className="lg:col-span-5 relative"
           >
             <div className="relative aspect-[4/5] rounded-3xl overflow-hidden border border-white/[0.1] shadow-2xl shadow-black/80 group">
               <img
                 src="https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=1200&q=85"
                 alt="Mesa de jantar de madeira maciça Ferrerlim com acabamento acetinado"
-                className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                className="w-full h-full object-cover transition-transform duration-[450ms] ease-out will-change-transform group-hover:[@media(hover:hover)]:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0d0c0a] via-transparent to-transparent opacity-75" />
 
@@ -667,19 +749,21 @@ export default function App() {
 
       {/* Catálogo de obras autorais */}
       <section id="obras" className="py-28 px-6 max-w-7xl mx-auto border-t border-white/[0.06]">
-        <div className="max-w-2xl mb-12">
-          <span className="text-amber-400 font-mono text-xs uppercase tracking-widest block mb-2 font-semibold">
-            Portfólio de Obras
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-serif font-bold text-stone-100 tracking-[-0.02em]">
-            Criações Selecionadas do Ateliê
-          </h2>
-          <p className="text-stone-400 mt-3 text-sm sm:text-base leading-relaxed">
-            Cada móvel é numerado e acompanhado de certificado de autenticidade da madeira com Documento de Origem Florestal.
-          </p>
-        </div>
+        <FadeInSection reduced={!!prefersReduced}>
+          <div className="max-w-2xl mb-12">
+            <span className="text-amber-400 font-mono text-xs uppercase tracking-widest block mb-2 font-semibold">
+              Portfólio de Obras
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-stone-100 tracking-[-0.02em]">
+              Criações Selecionadas do Ateliê
+            </h2>
+            <p className="text-stone-400 mt-3 text-sm sm:text-base leading-relaxed">
+              Cada móvel é numerado e acompanhado de certificado de autenticidade da madeira com Documento de Origem Florestal.
+            </p>
+          </div>
+        </FadeInSection>
 
-        {/* Pílulas de Filtro com layoutId e física de molas (Emil Kowalski) */}
+        {/* Pílulas de Filtro com layoutId e física de molas */}
         <div className="flex flex-wrap items-center gap-2.5 mb-12">
           {[
             { id: "todas", label: "Todas as Obras" },
@@ -713,16 +797,16 @@ export default function App() {
         {/* Grade de Cards com Layout PopLayout e Stagger */}
         <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <AnimatePresence mode="popLayout">
-            {projetosFiltrados.map((projeto) => (
+            {projetosFiltrados.map((projeto, idx) => (
               <motion.article
                 key={projeto.id}
                 layout
-                initial={{ opacity: 0, scale: 0.96 }}
+                initial={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                exit={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.35, delay: idx * 0.05, ease: [0.16, 1, 0.3, 1] }}
                 onClick={() => setProjetoSelecionado(projeto)}
-                className="group cursor-pointer bg-[#14120f]/80 rounded-2xl overflow-hidden border border-white/[0.08] hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-black/70 flex flex-col justify-between"
+                className="group cursor-pointer bg-[#14120f]/80 rounded-2xl overflow-hidden border border-white/[0.08] hover:border-amber-500/50 transition-[border-color,box-shadow] duration-300 hover:shadow-2xl hover:shadow-black/70 flex flex-col justify-between"
               >
                 {/* Imagem do Card */}
                 <div>
@@ -731,9 +815,9 @@ export default function App() {
                       src={projeto.imagemCapa}
                       alt={projeto.titulo}
                       loading="lazy"
-                      className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                      className="w-full h-full object-cover transition-transform duration-[450ms] ease-out will-change-transform group-hover:[@media(hover:hover)]:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#14120f] via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#14120f] via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity duration-300" />
                     <span className="absolute top-3.5 right-3.5 text-[10px] font-mono bg-[#0d0c0a]/85 backdrop-blur-md px-2.5 py-1 rounded-md text-amber-400 border border-white/[0.08]">
                       {projeto.ano}
                     </span>
@@ -787,7 +871,7 @@ export default function App() {
               onClick={(e) => e.stopPropagation()}
               className="bg-[#151310] border border-white/[0.12] rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl relative"
             >
-              {/* Botão Fechar Tátil */}
+              {/* Botão Fechar */}
               <button
                 onClick={() => setProjetoSelecionado(null)}
                 className="absolute top-5 right-5 z-20 w-10 h-10 rounded-full bg-[#0d0c0a]/80 backdrop-blur-md text-stone-300 hover:text-white flex items-center justify-center border border-white/[0.1] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
@@ -796,7 +880,7 @@ export default function App() {
                 <IconClose className="w-4 h-4" />
               </button>
 
-              {/* Foto Principal em Destaque */}
+              {/* Foto Principal */}
               <div className="relative aspect-[16/9] w-full overflow-hidden bg-stone-950 rounded-t-3xl">
                 <img
                   src={fotoModalAtiva}
@@ -806,14 +890,14 @@ export default function App() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#151310] via-transparent to-transparent opacity-50" />
               </div>
 
-              {/* Seletor de Miniaturas (Se houver fotos adicionais) */}
+              {/* Seletor de Miniaturas */}
               {projetoSelecionado.fotosAdicionais.length > 0 && (
                 <div className="flex items-center gap-3 px-6 sm:px-8 pt-4">
                   {[projetoSelecionado.imagemCapa, ...projetoSelecionado.fotosAdicionais].map((url, idx) => (
                     <button
                       key={idx}
                       onClick={() => setFotoModalAtiva(url)}
-                      className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${fotoModalAtiva === url
+                      className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 transition-[border-color,opacity,transform] duration-200 ${fotoModalAtiva === url
                           ? "border-amber-400 scale-105"
                           : "border-transparent opacity-60 hover:opacity-100"
                         }`}
@@ -824,7 +908,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* Conteúdo & Especificações de Marcenaria */}
+              {/* Conteúdo & Especificações */}
               <div className="p-6 sm:p-8 space-y-6">
                 <div>
                   <div className="flex items-center gap-3 mb-1.5">
@@ -844,7 +928,7 @@ export default function App() {
                   {projetoSelecionado.descricaoCompleta}
                 </p>
 
-                {/* Grid de Especificações de Atelier */}
+                {/* Grid de Especificações */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 rounded-2xl bg-[#1a1714] border border-white/[0.08]">
                   <div>
                     <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block">
@@ -894,9 +978,9 @@ export default function App() {
                   <div className="flex items-center gap-3 w-full sm:w-auto">
                     <motion.button
                       onClick={() => preencherComProjeto(projetoSelecionado)}
-                      whileHover={{ scale: 1.02 }}
+                      whileHover={hoverScale}
                       whileTap={{ scale: 0.98 }}
-                      className="w-full sm:w-auto px-6 py-3 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs uppercase tracking-wider transition-all"
+                      className="w-full sm:w-auto px-6 py-3 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-xs uppercase tracking-wider transition-[background] duration-200"
                     >
                       Personalizar Esta Peça
                     </motion.button>
@@ -911,8 +995,8 @@ export default function App() {
       {/* O ofício e tradição */}
       <section id="oficio" className="py-28 px-6 bg-[#12100d] border-y border-white/[0.06]">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
-          {/* Fotografia do Ateliê com Detalhes Manuais */}
-          <div className="lg:col-span-5 relative">
+          {/* Fotografia do Ateliê */}
+          <FadeInSection reduced={!!prefersReduced} className="lg:col-span-5 relative">
             <div className="aspect-[4/5] rounded-3xl overflow-hidden border border-white/[0.1] shadow-2xl">
               <img
                 src="https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=1000&q=80"
@@ -930,10 +1014,10 @@ export default function App() {
                 &mdash; Rodrigo Ferrerlim, Ateliê
               </span>
             </div>
-          </div>
+          </FadeInSection>
 
-          {/* Os 4 Pilares da Marcenaria de Precisão */}
-          <div className="lg:col-span-7 space-y-6">
+          {/* Os 4 Pilares */}
+          <FadeInSection reduced={!!prefersReduced} delay={0.1} className="lg:col-span-7 space-y-6">
             <span className="text-amber-400 font-mono text-xs uppercase tracking-widest block font-semibold">
               Tradição, Física &amp; Rigor
             </span>
@@ -944,51 +1028,37 @@ export default function App() {
               No ateliê <strong className="text-stone-100 font-semibold">Ferrerlim</strong>, não aceleramos o tempo com secagens forçadas que estressam a fibra nem mascaramos defeitos com massa sintética. Cada móvel é desenhado considerando o coeficiente de dilatação higrométrica da espécie e construído com técnicas que mantêm a integridade por mais de um século.
             </p>
 
-            {/* As 4 Etapas do Método Autoral */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-              <div className="p-5 rounded-2xl bg-[#171411] border border-white/[0.08]">
-                <span className="text-amber-400 font-mono text-xs font-bold block mb-1">
-                  01. Seleção &amp; Cura Natural
-                </span>
-                <p className="text-xs text-stone-400 leading-relaxed">
-                  Pranchas com certificação florestal repousam em estufa natural até atingirem 10-12% de umidade interna ideal.
-                </p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-[#171411] border border-white/[0.08]">
-                <span className="text-amber-400 font-mono text-xs font-bold block mb-1">
-                  02. Encaixes Sem Ferragens
-                </span>
-                <p className="text-xs text-stone-400 leading-relaxed">
-                  Espigas, respigas, gravatas borboleta e cauda-de-andorinha ajustadas à serra Dozuki e formões manuais.
-                </p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-[#171411] border border-white/[0.08]">
-                <span className="text-amber-400 font-mono text-xs font-bold block mb-1">
-                  03. Lixamento Progressivo
-                </span>
-                <p className="text-xs text-stone-400 leading-relaxed">
-                  Até 8 etapas de grãos finos à mão com desfibramento hídrico para atingir toque sedoso permanente.
-                </p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-[#171411] border border-white/[0.08]">
-                <span className="text-amber-400 font-mono text-xs font-bold block mb-1">
-                  04. Acabamento Orgânico Puro
-                </span>
-                <p className="text-xs text-stone-400 leading-relaxed">
-                  Óleos vegetais de tungue e linhaça combinados a cera de abelha pura. Sem vernizes plásticos sintéticos.
-                </p>
-              </div>
+              {[
+                { num: "01", title: "Seleção & Cura Natural", desc: "Pranchas com certificação florestal repousam em estufa natural até atingirem 10-12% de umidade interna ideal." },
+                { num: "02", title: "Encaixes Sem Ferragens", desc: "Espigas, respigas, gravatas borboleta e cauda-de-andorinha ajustadas à serra Dozuki e formões manuais." },
+                { num: "03", title: "Lixamento Progressivo", desc: "Até 8 etapas de grãos finos à mão com desfibramento hídrico para atingir toque sedoso permanente." },
+                { num: "04", title: "Acabamento Orgânico Puro", desc: "Óleos vegetais de tungue e linhaça combinados a cera de abelha pura. Sem vernizes plásticos sintéticos." }
+              ].map((step, i) => (
+                <motion.div
+                  key={step.num}
+                  initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-40px" }}
+                  transition={{ duration: 0.4, delay: 0.08 * i, ease: [0.16, 1, 0.3, 1] }}
+                  className="p-5 rounded-2xl bg-[#171411] border border-white/[0.08]"
+                >
+                  <span className="text-amber-400 font-mono text-xs font-bold block mb-1">
+                    {step.num}. {step.title}
+                  </span>
+                  <p className="text-xs text-stone-400 leading-relaxed">
+                    {step.desc}
+                  </p>
+                </motion.div>
+              ))}
             </div>
-          </div>
+          </FadeInSection>
         </div>
       </section>
 
       {/* Catálogo de essências nobres */}
       <section id="madeiras" className="py-28 px-6 max-w-7xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-16">
+        <FadeInSection reduced={!!prefersReduced} className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-amber-400 font-mono text-xs uppercase tracking-widest block mb-2 font-semibold">
             Matéria-Prima com Certificação
           </span>
@@ -998,27 +1068,30 @@ export default function App() {
           <p className="text-stone-400 mt-3 text-sm sm:text-base leading-relaxed">
             Todas as madeiras utilizadas possuem Documento de Origem Florestal (DOF / Ibama) ou provêm de desmontes históricos recuperados.
           </p>
-        </div>
+        </FadeInSection>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {MADEIRAS_FERRERLIM.map((mad) => (
+          {MADEIRAS_FERRERLIM.map((mad, idx) => (
             <motion.div
               key={mad.id}
-              whileHover={{ y: -4 }}
-              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              initial={prefersReduced ? false : { opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.45, delay: idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
+              whileHover={canHover ? { y: -4 } : undefined}
               onClick={() => setMadeiraDetalhe(mad)}
-              className="group cursor-pointer bg-[#14120f]/80 rounded-2xl overflow-hidden border border-white/[0.08] hover:border-amber-500/40 transition-colors p-5 flex flex-col justify-between"
+              className="group cursor-pointer bg-[#14120f]/80 rounded-2xl overflow-hidden border border-white/[0.08] hover:border-amber-500/40 transition-[border-color] duration-200 p-5 flex flex-col justify-between"
             >
               <div>
                 <div className="aspect-[4/3] rounded-xl overflow-hidden mb-4 bg-stone-950">
                   <img
                     src={mad.foto}
                     alt={mad.nome}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="w-full h-full object-cover transition-transform duration-[450ms] ease-out will-change-transform group-hover:[@media(hover:hover)]:scale-105"
                   />
                 </div>
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="font-serif font-bold text-lg text-stone-100 group-hover:text-amber-400 transition-colors">
+                  <h3 className="font-serif font-bold text-lg text-stone-100 group-hover:text-amber-400 transition-colors duration-200">
                     {mad.nome}
                   </h3>
                   <span className="text-[10px] font-mono text-amber-400">
@@ -1064,7 +1137,7 @@ export default function App() {
             >
               <button
                 onClick={() => setMadeiraDetalhe(null)}
-                className="absolute top-5 right-5 w-9 h-9 rounded-full bg-stone-900/80 text-stone-300 hover:text-white flex items-center justify-center border border-white/[0.1]"
+                className="absolute top-5 right-5 w-9 h-9 rounded-full bg-stone-900/80 text-stone-300 hover:text-white flex items-center justify-center border border-white/[0.1] transition-colors"
                 aria-label="Fechar"
               >
                 <IconClose className="w-4 h-4" />
@@ -1109,7 +1182,7 @@ export default function App() {
       {/* Simulador de projeto sob medida */}
       <section id="simulador" className="py-28 px-6 bg-[#13110e] border-t border-white/[0.06]">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-16">
+          <FadeInSection reduced={!!prefersReduced} className="text-center max-w-2xl mx-auto mb-16">
             <span className="text-amber-400 font-mono text-xs uppercase tracking-widest block mb-2 font-semibold">
               Simulador Autoral Ferrerlim
             </span>
@@ -1119,11 +1192,11 @@ export default function App() {
             <p className="text-stone-400 mt-3 text-sm sm:text-base leading-relaxed">
               Selecione os parâmetros fundamentais para receber uma estimativa técnica detalhada e cronograma do ateliê.
             </p>
-          </div>
+          </FadeInSection>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
             {/* Controles do Simulador */}
-            <div className="lg:col-span-7 bg-[#171411] border border-white/[0.08] p-6 sm:p-8 rounded-3xl space-y-6">
+            <FadeInSection reduced={!!prefersReduced} className="lg:col-span-7 bg-[#171411] border border-white/[0.08] p-6 sm:p-8 rounded-3xl space-y-6">
               {/* Etapa 1: Tipo de Móvel */}
               <div>
                 <label className="block text-xs font-mono uppercase tracking-wider text-amber-400 mb-3 font-semibold">
@@ -1136,7 +1209,7 @@ export default function App() {
                       key={tipo}
                       whileTap={{ scale: 0.97 }}
                       onClick={() => setSimTipo(tipo)}
-                      className={`py-3 px-3 rounded-xl text-xs font-medium border text-center transition-all ${simTipo === tipo
+                      className={`py-3 px-3 rounded-xl text-xs font-medium border text-center transition-[background-color,border-color,color,box-shadow] duration-200 ${simTipo === tipo
                           ? "bg-amber-500 text-stone-950 border-amber-500 font-bold shadow-lg shadow-amber-500/20"
                           : "bg-stone-900/60 text-stone-400 border-white/[0.06] hover:border-stone-700"
                         }`}
@@ -1164,7 +1237,7 @@ export default function App() {
                       key={mad}
                       whileTap={{ scale: 0.97 }}
                       onClick={() => setSimMadeira(mad)}
-                      className={`py-3 px-3 rounded-xl text-xs font-medium border text-center transition-all ${simMadeira === mad
+                      className={`py-3 px-3 rounded-xl text-xs font-medium border text-center transition-[background-color,border-color,color,box-shadow] duration-200 ${simMadeira === mad
                           ? "bg-amber-500 text-stone-950 border-amber-500 font-bold shadow-lg shadow-amber-500/20"
                           : "bg-stone-900/60 text-stone-400 border-white/[0.06] hover:border-stone-700"
                         }`}
@@ -1191,7 +1264,7 @@ export default function App() {
                       key={dim}
                       whileTap={{ scale: 0.97 }}
                       onClick={() => setSimDimensao(dim)}
-                      className={`py-3 px-3 rounded-xl text-xs font-medium border text-center transition-all ${simDimensao === dim
+                      className={`py-3 px-3 rounded-xl text-xs font-medium border text-center transition-[background-color,border-color,color,box-shadow] duration-200 ${simDimensao === dim
                           ? "bg-amber-500 text-stone-950 border-amber-500 font-bold shadow-lg shadow-amber-500/20"
                           : "bg-stone-900/60 text-stone-400 border-white/[0.06] hover:border-stone-700"
                         }`}
@@ -1217,7 +1290,7 @@ export default function App() {
                       key={acab}
                       whileTap={{ scale: 0.97 }}
                       onClick={() => setSimAcabamento(acab)}
-                      className={`py-3 px-3 rounded-xl text-xs font-medium border text-center transition-all ${simAcabamento === acab
+                      className={`py-3 px-3 rounded-xl text-xs font-medium border text-center transition-[background-color,border-color,color,box-shadow] duration-200 ${simAcabamento === acab
                           ? "bg-amber-500 text-stone-950 border-amber-500 font-bold shadow-lg shadow-amber-500/20"
                           : "bg-stone-900/60 text-stone-400 border-white/[0.06] hover:border-stone-700"
                         }`}
@@ -1227,10 +1300,10 @@ export default function App() {
                   ))}
                 </div>
               </div>
-            </div>
+            </FadeInSection>
 
             {/* Painel Resumo em Tempo Real & Formulário */}
-            <div className="lg:col-span-5 bg-[#171411] border border-amber-500/30 p-6 sm:p-8 rounded-3xl space-y-6">
+            <FadeInSection reduced={!!prefersReduced} delay={0.1} className="lg:col-span-5 bg-[#171411] border border-amber-500/30 p-6 sm:p-8 rounded-3xl space-y-6">
               <div>
                 <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 block mb-1">
                   Resumo da Simulação
@@ -1259,125 +1332,147 @@ export default function App() {
                 </div>
               </div>
 
-              {formEnviado ? (
-                <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-500 text-stone-950 flex items-center justify-center mx-auto">
-                    <IconCheck className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-serif font-bold text-lg text-stone-100">
-                    Solicitação Recebida no Ateliê!
-                  </h4>
-                  <p className="text-xs text-stone-300 leading-relaxed">
-                    Entraremos em contato com a viabilidade técnica e croquis preliminar em até 24 horas úteis.
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={handleEnviarOrcamento} className="space-y-4">
-                  <div>
-                    <label htmlFor={`${formId}-nome`} className="block text-xs text-stone-400 mb-1">
-                      Seu Nome Completo
-                    </label>
-                    <input
-                      id={`${formId}-nome`}
-                      type="text"
-                      required
-                      value={formNome}
-                      onChange={(e) => setFormNome(e.target.value)}
-                      placeholder="Ex: Carlos Mendonça"
-                      className="w-full bg-[#12100d] border border-white/[0.08] rounded-xl px-4 py-3 text-stone-100 text-sm focus:border-amber-500 focus:outline-none transition-colors"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Cross-fade entre form e sucesso (não hard-cut) */}
+              <AnimatePresence mode="wait">
+                {formEnviado ? (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-3"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-amber-500 text-stone-950 flex items-center justify-center mx-auto">
+                      <IconCheck className="w-5 h-5" />
+                    </div>
+                    <h4 className="font-serif font-bold text-lg text-stone-100">
+                      Solicitação Recebida no Ateliê!
+                    </h4>
+                    <p className="text-xs text-stone-300 leading-relaxed">
+                      Entraremos em contato com a viabilidade técnica e croquis preliminar em até 24 horas úteis.
+                    </p>
+                  </motion.div>
+                ) : (
+                  <motion.form
+                    key="form"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.3 }}
+                    onSubmit={handleEnviarOrcamento}
+                    className="space-y-4"
+                  >
                     <div>
-                      <label htmlFor={`${formId}-tel`} className="block text-xs text-stone-400 mb-1">
-                        Telefone / WhatsApp
+                      <label htmlFor={`${formId}-nome`} className="block text-xs text-stone-400 mb-1">
+                        Seu Nome Completo
                       </label>
                       <input
-                        id={`${formId}-tel`}
-                        type="tel"
+                        id={`${formId}-nome`}
+                        type="text"
                         required
-                        value={formTelefone}
-                        onChange={(e) => setFormTelefone(e.target.value)}
-                        placeholder="(11) 98765-4321"
-                        className="w-full bg-[#12100d] border border-white/[0.08] rounded-xl px-4 py-3 text-stone-100 text-sm focus:border-amber-500 focus:outline-none transition-colors"
+                        value={formNome}
+                        onChange={(e) => setFormNome(e.target.value)}
+                        placeholder="Ex: Carlos Mendonça"
+                        className="w-full bg-[#12100d] border border-white/[0.08] rounded-xl px-4 py-3 text-stone-100 text-base focus:border-amber-500 focus:outline-none transition-[border-color]"
                       />
                     </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor={`${formId}-tel`} className="block text-xs text-stone-400 mb-1">
+                          Telefone / WhatsApp
+                        </label>
+                        <input
+                          id={`${formId}-tel`}
+                          type="tel"
+                          required
+                          value={formTelefone}
+                          onChange={(e) => setFormTelefone(e.target.value)}
+                          placeholder="(11) 98765-4321"
+                          className="w-full bg-[#12100d] border border-white/[0.08] rounded-xl px-4 py-3 text-stone-100 text-base focus:border-amber-500 focus:outline-none transition-[border-color]"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`${formId}-email`} className="block text-xs text-stone-400 mb-1">
+                          E-mail
+                        </label>
+                        <input
+                          id={`${formId}-email`}
+                          type="email"
+                          required
+                          value={formEmail}
+                          onChange={(e) => setFormEmail(e.target.value)}
+                          placeholder="carlos@exemplo.com"
+                          className="w-full bg-[#12100d] border border-white/[0.08] rounded-xl px-4 py-3 text-stone-100 text-base focus:border-amber-500 focus:outline-none transition-[border-color]"
+                        />
+                      </div>
+                    </div>
+
                     <div>
-                      <label htmlFor={`${formId}-email`} className="block text-xs text-stone-400 mb-1">
-                        E-mail
+                      <label htmlFor={`${formId}-msg`} className="block text-xs text-stone-400 mb-1">
+                        Notas Especiais de Arquitetura (Opcional)
                       </label>
-                      <input
-                        id={`${formId}-email`}
-                        type="email"
-                        required
-                        value={formEmail}
-                        onChange={(e) => setFormEmail(e.target.value)}
-                        placeholder="carlos@exemplo.com"
-                        className="w-full bg-[#12100d] border border-white/[0.08] rounded-xl px-4 py-3 text-stone-100 text-sm focus:border-amber-500 focus:outline-none transition-colors"
+                      <textarea
+                        id={`${formId}-msg`}
+                        rows={2}
+                        value={formMensagem}
+                        onChange={(e) => setFormMensagem(e.target.value)}
+                        placeholder="Espaço disponível na sala de jantar, iluminação, tom do piso..."
+                        className="w-full bg-[#12100d] border border-white/[0.08] rounded-xl px-4 py-3 text-stone-100 text-base focus:border-amber-500 focus:outline-none transition-[border-color]"
                       />
                     </div>
-                  </div>
 
-                  <div>
-                    <label htmlFor={`${formId}-msg`} className="block text-xs text-stone-400 mb-1">
-                      Notas Especiais de Arquitetura (Opcional)
-                    </label>
-                    <textarea
-                      id={`${formId}-msg`}
-                      rows={2}
-                      value={formMensagem}
-                      onChange={(e) => setFormMensagem(e.target.value)}
-                      placeholder="Espaço disponível na sala de jantar, iluminação, tom do piso..."
-                      className="w-full bg-[#12100d] border border-white/[0.08] rounded-xl px-4 py-3 text-stone-100 text-sm focus:border-amber-500 focus:outline-none transition-colors"
-                    />
-                  </div>
+                    <div className="flex flex-col gap-3 pt-2">
+                      <motion.button
+                        type="submit"
+                        whileHover={hoverScale}
+                        whileTap={{ scale: 0.98 }}
+                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-sm tracking-wide transition-[background] duration-200 shadow-lg shadow-amber-500/20"
+                      >
+                        Solicitar Orçamento Formal
+                      </motion.button>
 
-                  <div className="flex flex-col gap-3 pt-2">
-                    <motion.button
-                      type="submit"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold text-sm tracking-wide transition-all shadow-lg shadow-amber-500/20"
-                    >
-                      Solicitar Orçamento Formal
-                    </motion.button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleWhatsApp(
-                          `Olá, Ateliê Ferrerlim! Simulei no site um projeto de ${simTipo} em ${simMadeira} (${simDimensao}) com acabamento em ${simAcabamento}. Gostaria de orçar com vocês!`
-                        )
-                      }
-                      className="w-full py-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <IconWhatsApp className="w-4 h-4" /> Enviar Configuração no WhatsApp
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleWhatsApp(
+                            `Olá, Ateliê Ferrerlim! Simulei no site um projeto de ${simTipo} em ${simMadeira} (${simDimensao}) com acabamento em ${simAcabamento}. Gostaria de orçar com vocês!`
+                          )
+                        }
+                        className="w-full py-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center justify-center gap-2 transition-[background-color] duration-200"
+                      >
+                        <IconWhatsApp className="w-4 h-4" /> Enviar Configuração no WhatsApp
+                      </button>
+                    </div>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+            </FadeInSection>
           </div>
         </div>
       </section>
 
-      {/* Depoimentos */}
+      {/* Depoimentos com entrada stagger */}
       <section id="depoimentos" className="py-28 px-6 bg-[#110f0d] border-t border-white/[0.06]">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-16">
+          <FadeInSection reduced={!!prefersReduced} className="text-center max-w-2xl mx-auto mb-16">
             <span className="text-amber-400 font-mono text-xs uppercase tracking-widest block mb-2 font-semibold">
               Reconhecimento &amp; Confiança
             </span>
             <h2 className="text-3xl font-serif font-bold text-stone-100 tracking-[-0.02em]">
               O Que Dizem Nossos Clientes e Parceiros
             </h2>
-          </div>
+          </FadeInSection>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {DEPOIMENTOS_CLIENTES.map((dep, index) => (
-              <div
+              <motion.div
                 key={index}
+                initial={prefersReduced ? false : { opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.45, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
                 className="p-7 rounded-2xl bg-[#161411] border border-white/[0.08] flex flex-col justify-between"
               >
                 <div>
@@ -1399,16 +1494,16 @@ export default function App() {
                     {dep.local} &bull; {dep.projeto}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Botão flutuante do WhatsApp */}
+      {/* Botão flutuante do WhatsApp — scale reduzido de 1.06 para 1.04 */}
       <motion.button
         onClick={() => handleWhatsApp()}
-        whileHover={{ scale: 1.06 }}
+        whileHover={canHover ? { scale: 1.04 } : undefined}
         whileTap={{ scale: 0.94 }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
         className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white p-3.5 sm:px-5 sm:py-3.5 rounded-full shadow-2xl flex items-center gap-2.5 border border-emerald-400/30 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
